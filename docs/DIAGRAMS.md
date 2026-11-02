@@ -7,7 +7,7 @@ Mermaid diagrams (render on GitHub or in the VS Code Markdown preview).
 ```mermaid
 flowchart LR
     U[Customer browser<br/>React + TypeScript] -->|REST /v1/*| E[Envoy<br/>gRPC-JSON transcoder]
-    R[Retool dashboard] -->|REST via ngrok| E
+    R[Retool dashboard] -->|REST via Cloudflare tunnel| E
     E -->|gRPC / HTTP2| B[Java gRPC service<br/>TripGrpcService]
     B --> S[TripService]
     S --> P[(TripRepository)]

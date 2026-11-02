@@ -15,7 +15,7 @@ The tunnel prints an `https://...` address; use it as the Base URL below. The ad
 
 **Resources → Create new → REST API**
 - Name: `tripsApi`
-- Base URL: the ngrok HTTPS URL
+- Base URL: the tunnel's HTTPS URL
 - Headers: `Content-Type: application/json`
 
 ## 2. Queries
