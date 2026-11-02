@@ -1,0 +1,54 @@
+services:
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    ports:
+      - "9010:9010" # gRPC
+      - "9020:9020" # REST
+
+  # Creates the instance + database and applies the schema, then exits.
+  spanner-init:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    depends_on:
+      - spanner
+    environment:
+      CLOUDSDK_API_ENDPOINT_OVERRIDES_SPANNER: http://spanner:9020/
+      CLOUDSDK_CORE_PROJECT: trips-project
+      CLOUDSDK_AUTH_DISABLE_CREDENTIALS: "true"
+    volumes:
+      - ./backend/spanner/schema.sql:/schema.sql:ro
+      - ./backend/spanner/seed.sql:/seed.sql:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        gcloud spanner instances create trips-instance --config=emulator-config --description="Trips" --nodes=1 || true
+        gcloud spanner databases create trips-db --instance=trips-instance --ddl-file=/schema.sql || true
+        gcloud spanner databases execute-sql trips-db --instance=trips-instance --sql="$$(cat /seed.sql)" || true
+
+  # Enabled with: docker compose --profile app up --build
+  backend:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      spanner-init:
+        condition: service_completed_successfully
+    environment:
+      SPANNER_EMULATOR_HOST: spanner:9010
+      SPANNER_PROJECT: trips-project
+      SPANNER_INSTANCE: trips-instance
+      SPANNER_DATABASE: trips-db
+      GRPC_PORT: "9090"
+    ports:
+      - "9090:9090"
+
+  # gRPC-JSON transcoding: REST on :8080 -> gRPC backend:9090
+  envoy:
+    profiles: ["app"]
+    image: envoyproxy/envoy:v1.31-latest
+    depends_on:
+      - backend
+    volumes:
+      - ./envoy:/etc/envoy:ro
+    ports:
+      - "8080:8080"

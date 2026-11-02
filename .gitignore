@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+dependency-reduced-pom.xml
+envoy/descriptors/
+.env
+.idea/
+.vscode/
+*.log
+coverage/

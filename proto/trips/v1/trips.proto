@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package trips.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.infocusp.trips.v1";
+option java_outer_classname = "TripsProto";
+
+service TripService {
+  // Lists trips with pagination, name search and "active at time" filtering.
+  rpc ListTrips(ListTripsRequest) returns (ListTripsResponse) {
+    option (google.api.http) = {
+      get: "/v1/trips"
+    };
+  }
+
+  // Updates the stage of a single trip.
+  rpc UpdateTripStage(UpdateTripStageRequest) returns (Trip) {
+    option (google.api.http) = {
+      patch: "/v1/trips/{trip_id}/stage"
+      body: "*"
+    };
+  }
+}
+
+enum TripStage {
+  TRIP_STAGE_UNSPECIFIED = 0;
+  NOT_STARTED = 1;
+  IN_TRANSIT = 2;
+  COMPLETED = 3;
+}
+
+message Trip {
+  string trip_id = 1;
+  string name = 2;
+  TripStage stage = 3;
+  bool is_active = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message ListTripsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  // Case-insensitive substring match on trip name.
+  string search_title = 3;
+  // ISO-8601 UTC timestamp. Matches StartTime <= t AND EndTime >= t.
+  string active_at_time = 4;
+}
+
+message ListTripsResponse {
+  repeated Trip trips = 1;
+  string next_page_token = 2;
+}
+
+message UpdateTripStageRequest {
+  string trip_id = 1;
+  TripStage stage = 2;
+}
