@@ -42,12 +42,27 @@ services:
     ports:
       - "9090:9090"
 
+  # Generates envoy/descriptors/trips.pb from proto/ with the same Maven build
+  # the backend uses, then exits. Envoy waits for it, so no host JDK/Maven is needed.
+  descriptor:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: build
+    volumes:
+      - ./envoy/descriptors:/build/envoy/descriptors
+    command: ["mvn", "-q", "-B", "clean", "compile"]
+
   # gRPC-JSON transcoding: REST on :8080 -> gRPC backend:9090
   envoy:
     profiles: ["app"]
     image: envoyproxy/envoy:v1.31-latest
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      descriptor:
+        condition: service_completed_successfully
     volumes:
       - ./envoy:/etc/envoy:ro
     ports:

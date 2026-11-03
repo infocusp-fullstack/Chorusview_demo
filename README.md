@@ -20,17 +20,11 @@ docker compose up -d spanner spanner-init
 Creates instance `trips-instance` and database `trips-db`, applies [backend/spanner/schema.sql](backend/spanner/schema.sql) and loads [backend/spanner/seed.sql](backend/spanner/seed.sql) (12 sample trips).
 Emulator: gRPC `localhost:9010`, REST `localhost:9020`.
 
-## 2. Compile protobufs
-```
-cd backend
-mvn compile
-```
-Generates the Java/gRPC stubs and writes the descriptor `envoy/descriptors/trips.pb` used by the transcoder.
-
-## 3. Run the backend + REST transcoding
+## 2. Run the backend + REST transcoding
 ```
 docker compose --profile app up --build
 ```
+A one-shot `descriptor` service runs the Maven protobuf build and writes `envoy/descriptors/trips.pb` (git-ignored) for Envoy's transcoder; Envoy starts only after it succeeds, so no host JDK or Maven is needed for this step.
 - gRPC: `localhost:9090`
 - REST (Envoy transcoding): `http://localhost:8080/v1/trips`
 
@@ -42,9 +36,9 @@ curl -X PATCH http://localhost:8080/v1/trips/00000000-0000-0000-0000-00000000000
 ```
 
 Run the backend outside Docker (the emulator must be up) with
-`SPANNER_EMULATOR_HOST=localhost:9010 SPANNER_PROJECT=trips-project SPANNER_INSTANCE=trips-instance SPANNER_DATABASE=trips-db GRPC_PORT=9090 java -jar target/trips-backend.jar` (after `mvn package`).
+`SPANNER_EMULATOR_HOST=localhost:9010 SPANNER_PROJECT=trips-project SPANNER_INSTANCE=trips-instance SPANNER_DATABASE=trips-db GRPC_PORT=9090 java -jar target/trips-backend.jar` (after `mvn package`, which also writes `envoy/descriptors/trips.pb`).
 
-## 4. Frontend
+## 3. Frontend
 ```
 cd frontend
 cp .env.example .env
@@ -53,7 +47,7 @@ npm run dev
 ```
 Open http://localhost:5173 (`/v1` is proxied to Envoy on :8080).
 
-## 5. Retool
+## 4. Retool
 See [retool/README.md](retool/README.md).
 
 ## Tests and quality gates
@@ -63,6 +57,7 @@ cd frontend && npm run lint && npm test && npm run build
 ```
 
 ## Troubleshooting
+- **`curl: (7) Failed to connect to localhost port 8080`:** Envoy is not running. Check `docker compose --profile app ps -a` and `docker compose --profile app logs descriptor envoy`. If you started Envoy without the `descriptor` service (for example `docker compose up envoy` without `--profile app`), `envoy/descriptors/trips.pb` is missing and Envoy exits with `Invalid path: .../trips.pb`; start with `docker compose --profile app up --build`.
 - **`protoc did not exit cleanly` / "directory does not exist":** another tool (for example an IDE's Java extension) is building in `backend/target` at the same time. Close it or re-run `mvn clean verify`.
 - **"Coverage checks have not been met" with "execution data does not match" warnings:** stale build output. Use `mvn clean verify`.
 - **Backend returns `Database does not exist`:** the emulator keeps data in memory. After restarting it, run `docker compose --profile app up -d --force-recreate spanner-init backend envoy`.

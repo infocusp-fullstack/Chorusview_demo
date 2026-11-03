@@ -8,3 +8,6 @@ envoy/descriptors/
 .vscode/
 *.log
 coverage/
+
+# Private interview notes
+INTERVIEW_PREP.md
